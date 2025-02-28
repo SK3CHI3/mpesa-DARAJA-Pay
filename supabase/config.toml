@@ -22,4 +22,5 @@ enabled = true
 
 [[function]]
 name = "initiate-stk-push"
-verify_jwt = true
+verify_jwt = false
+

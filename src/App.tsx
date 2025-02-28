@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import Index from "@/pages/Index";
 import NotFound from "@/pages/NotFound";
 import { createClient } from "@supabase/supabase-js";
-import { useState, useEffect } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 // Initialize Supabase client

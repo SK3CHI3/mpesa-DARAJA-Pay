@@ -10,14 +10,27 @@ type AuthContextType = {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
+  // New property to track if auth is being used
+  authRequired: boolean;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Default context with auth not required
+const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  signIn: async () => {},
+  signUp: async () => {},
+  signOut: async () => {},
+  loading: false,
+  authRequired: false,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  // Set auth as not required
+  const authRequired = false;
 
   useEffect(() => {
     // Get initial session
@@ -58,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     loading,
+    authRequired,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

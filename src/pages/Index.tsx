@@ -8,10 +8,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, PhoneCall, ArrowRight, CheckCircle, User, LogOut } from "lucide-react";
+import { CreditCard, PhoneCall, ArrowRight, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/App";
-import Auth from "./Auth";
 
 // Define our form schema
 const formSchema = z.object({
@@ -40,7 +39,7 @@ type Transaction = {
 };
 
 const Index = () => {
-  const { user, signOut, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
@@ -54,8 +53,6 @@ const Index = () => {
   });
 
   const fetchTransactions = async () => {
-    if (!user) return;
-    
     try {
       setLoadingTransactions(true);
       const { data, error } = await supabase
@@ -79,29 +76,12 @@ const Index = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchTransactions();
-    }
-  }, [user]);
+    fetchTransactions();
+  }, []);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to make payments",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setPaymentStatus("loading");
-      
-      // Get the user's session for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("You must be logged in to make payments");
-      }
       
       // Call our Supabase Edge Function to initiate the STK Push
       const response = await fetch(
@@ -110,7 +90,6 @@ const Index = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
             phoneNumber: values.phoneNumber,
@@ -152,13 +131,8 @@ const Index = () => {
     }
   };
 
-  // If not authenticated and not loading, show auth page
-  if (!user && !authLoading) {
-    return <Auth />;
-  }
-
-  // Show loading state while checking authentication
-  if (authLoading) {
+  // Show loading state while checking transactions
+  if (loadingTransactions && transactions.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
         <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -168,29 +142,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex flex-col items-center p-4">
-      {/* User info bar */}
-      <div className="w-full max-w-4xl flex justify-between items-center mb-6 px-4 py-2 bg-white rounded-lg shadow">
-        <div className="flex items-center gap-2">
-          <User className="h-5 w-5 text-blue-500" />
-          <span className="font-medium text-gray-700">{user?.email}</span>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={async () => {
-            await signOut();
-            toast({
-              title: "Signed out",
-              description: "You have been signed out successfully.",
-            });
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </Button>
-      </div>
-
       <div className="w-full max-w-4xl grid md:grid-cols-2 gap-6">
         {/* Payment form */}
         <div>
