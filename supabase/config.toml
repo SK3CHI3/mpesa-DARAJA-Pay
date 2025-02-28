@@ -20,7 +20,6 @@ enabled = true
 [storage]
 enabled = true
 
-[[function]]
-name = "initiate-stk-push"
+[functions]
+[functions.initiate-stk-push]
 verify_jwt = false
-
