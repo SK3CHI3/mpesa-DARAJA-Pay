@@ -164,7 +164,7 @@ const Index = () => {
                     name="phoneNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2">
+                        <FormLabel className="flex items-center justify-center gap-2">
                           <PhoneCall className="h-4 w-4" />
                           Phone Number
                         </FormLabel>
@@ -189,7 +189,7 @@ const Index = () => {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2">
+                        <FormLabel className="flex items-center justify-center gap-2">
                           <span className="font-bold">KES</span>
                           Amount
                         </FormLabel>
