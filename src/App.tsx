@@ -2,6 +2,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import Index from "@/pages/Index";
+import History from "@/pages/History";
 import NotFound from "@/pages/NotFound";
 import { createClient } from "@supabase/supabase-js";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -16,6 +17,10 @@ const router = createBrowserRouter([
     path: "/",
     element: <Index />,
     errorElement: <NotFound />,
+  },
+  {
+    path: "/history",
+    element: <History />,
   },
 ]);
 

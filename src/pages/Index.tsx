@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, PhoneCall, ArrowRight, CheckCircle } from "lucide-react";
+import { CreditCard, PhoneCall, ArrowRight, CheckCircle, History } from "lucide-react";
 import { supabase } from "@/App";
 
 // Define our form schema
@@ -184,6 +185,16 @@ const Index = () => {
             </Form>
           </CardContent>
         </Card>
+
+        {/* History Link */}
+        <div className="mt-4 text-center">
+          <Link to="/history">
+            <Button variant="outline" className="gap-2">
+              <History className="h-4 w-4" />
+              View Transaction History
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 text-center text-gray-500 text-sm">
