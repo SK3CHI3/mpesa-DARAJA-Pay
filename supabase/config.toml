@@ -1,1 +1,25 @@
+
 project_id = "evghwzipbhnwhwkshumt"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 54324
+
+[auth]
+enabled = true
+
+[storage]
+enabled = true
+
+[[function]]
+name = "initiate-stk-push"
+verify_jwt = true

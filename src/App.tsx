@@ -1,27 +1,32 @@
+
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
+import { createClient } from "@supabase/supabase-js";
+import { useState, useEffect } from "react";
+import { AuthProvider } from "@/contexts/AuthContext";
 
-const queryClient = new QueryClient();
+// Initialize Supabase client
+const supabaseUrl = "https://evghwzipbhnwhwkshumt.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2Z2h3emlwYmhud2h3a3NodW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA1NTI4NzQsImV4cCI6MjA1NjEyODg3NH0.J4vA31adP_RaOy-3K2yQzI2V31-DrzPN4StfFQgSXyo";
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Index />,
+    errorElement: <NotFound />,
+  },
+]);
+
+function App() {
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
       <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </AuthProvider>
+  );
+}
 
 export default App;
