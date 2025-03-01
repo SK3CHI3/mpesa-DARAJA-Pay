@@ -61,7 +61,7 @@ const Index = () => {
           body: JSON.stringify({
             phoneNumber: values.phoneNumber,
             amount: values.amount,
-            userId: userId || null, // Pass user ID if available or null for anonymous users
+            userId: userId, // Pass null for anonymous users
           }),
         }
       );

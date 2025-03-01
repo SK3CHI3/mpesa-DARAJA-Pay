@@ -17,7 +17,7 @@ export type Database = {
           mpesa_receipt: string | null
           phone_number: string
           status: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount: number
@@ -26,7 +26,7 @@ export type Database = {
           mpesa_receipt?: string | null
           phone_number: string
           status?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
@@ -35,7 +35,7 @@ export type Database = {
           mpesa_receipt?: string | null
           phone_number?: string
           status?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
