@@ -23,3 +23,6 @@ enabled = true
 [functions]
 [functions.initiate-stk-push]
 verify_jwt = false
+
+[functions.stk-callback]
+verify_jwt = false

@@ -57,19 +57,15 @@ function formatPhoneNumber(phoneNumber: string): string {
 }
 
 // Main function to initiate STK Push
-async function initiateSTKPush(phoneNumber: string, amount: number, userId: string) {
+async function initiateSTKPush(phoneNumber: string, amount: number) {
   try {
     const token = await generateMpesaToken();
     const formattedPhone = formatPhoneNumber(phoneNumber);
     
     const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 14);
-    const shortcode = Deno.env.get("MPESA_SHORTCODE");
-    const passkey = Deno.env.get("MPESA_PASSKEY");
+    const shortcode = Deno.env.get("MPESA_SHORTCODE") || "174379"; // Default sandbox shortcode
+    const passkey = Deno.env.get("MPESA_PASSKEY") || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"; // Default sandbox passkey
     
-    if (!shortcode || !passkey) {
-      throw new Error("Missing M-Pesa configuration");
-    }
-
     // Generate the password (Base64 of shortcode + passkey + timestamp)
     const password = btoa(`${shortcode}${passkey}${timestamp}`);
     
@@ -79,12 +75,12 @@ async function initiateSTKPush(phoneNumber: string, amount: number, userId: stri
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerPayBillOnline",
-      Amount: amount,
+      Amount: parseInt(amount.toString()),
       PartyA: formattedPhone,
       PartyB: shortcode,
       PhoneNumber: formattedPhone,
-      CallBackURL: Deno.env.get("MPESA_CALLBACK_URL") || "https://example.com/callback",
-      AccountReference: "M-Pesa Simplicity",
+      CallBackURL: Deno.env.get("MPESA_CALLBACK_URL") || "https://evghwzipbhnwhwkshumt.functions.supabase.co/stk-callback",
+      AccountReference: "M-Pesa Payment",
       TransactionDesc: "Payment for services",
     };
 
@@ -137,26 +133,6 @@ serve(async (req) => {
     const requestData = await req.json();
     const { phoneNumber, amount } = requestData;
     
-    // Get the user ID from the authorization header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Authenticate the user with Supabase
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Validate request data
     if (!phoneNumber || !amount) {
       return new Response(JSON.stringify({ error: "Phone number and amount are required" }), {
@@ -169,7 +145,6 @@ serve(async (req) => {
     const { data: transaction, error: insertError } = await supabaseClient
       .from("transactions")
       .insert({
-        user_id: user.id,
         phone_number: phoneNumber,
         amount: parseFloat(amount),
         status: "pending"
@@ -186,7 +161,7 @@ serve(async (req) => {
     }
 
     // Call the M-Pesa API to initiate STK Push
-    const mpesaResponse = await initiateSTKPush(phoneNumber, parseFloat(amount), user.id);
+    const mpesaResponse = await initiateSTKPush(phoneNumber, parseFloat(amount));
     
     // Update the transaction with the M-Pesa checkout request ID if available
     if (mpesaResponse.CheckoutRequestID) {
