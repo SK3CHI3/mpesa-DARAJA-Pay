@@ -131,7 +131,7 @@ serve(async (req) => {
 
     // Get the request body
     const requestData = await req.json();
-    const { phoneNumber, amount } = requestData;
+    const { phoneNumber, amount, userId } = requestData;
     
     // Validate request data
     if (!phoneNumber || !amount) {
@@ -141,13 +141,17 @@ serve(async (req) => {
       });
     }
 
+    // Use a default anonymous user ID if none is provided
+    const user_id = userId || "00000000-0000-0000-0000-000000000000";
+
     // Insert transaction record into database
     const { data: transaction, error: insertError } = await supabaseClient
       .from("transactions")
       .insert({
         phone_number: phoneNumber,
         amount: parseFloat(amount),
-        status: "pending"
+        status: "pending",
+        user_id: user_id
       })
       .select()
       .single();

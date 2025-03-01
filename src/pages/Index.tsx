@@ -44,6 +44,10 @@ const Index = () => {
     try {
       setPaymentStatus("loading");
       
+      // Get current user if logged in (will be null for anonymous users)
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      
       // Call our Supabase Edge Function to initiate the STK Push
       const response = await fetch(
         "https://evghwzipbhnwhwkshumt.functions.supabase.co/initiate-stk-push",
@@ -55,6 +59,7 @@ const Index = () => {
           body: JSON.stringify({
             phoneNumber: values.phoneNumber,
             amount: values.amount,
+            userId: userId || null, // Pass user ID if available
           }),
         }
       );
