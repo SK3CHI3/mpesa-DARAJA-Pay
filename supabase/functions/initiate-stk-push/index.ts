@@ -141,20 +141,28 @@ serve(async (req) => {
       });
     }
 
-    // Use a default anonymous user ID if none is provided
-    const user_id = userId || "00000000-0000-0000-0000-000000000000";
+    // In this version we're not checking if the user exists in auth.users
+    // We'll just use the provided userId or null for anonymous users
+    const userIdToUse = userId || null;
     
-    console.log("Processing transaction for user:", user_id);
+    console.log("Processing transaction with provided user ID:", userIdToUse);
 
-    // Insert transaction record into database
+    // Insert transaction record into database without a user_id if it's null
+    let insertData = {
+      phone_number: phoneNumber,
+      amount: parseFloat(amount),
+      status: "pending"
+    };
+    
+    // Only add user_id if it's provided
+    if (userIdToUse) {
+      // @ts-ignore - TypeScript complaining but this is valid
+      insertData.user_id = userIdToUse;
+    }
+    
     const { data: transaction, error: insertError } = await supabaseClient
       .from("transactions")
-      .insert({
-        phone_number: phoneNumber,
-        amount: parseFloat(amount),
-        status: "pending",
-        user_id: user_id
-      })
+      .insert(insertData)
       .select()
       .single();
 
