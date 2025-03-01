@@ -143,6 +143,8 @@ serve(async (req) => {
 
     // Use a default anonymous user ID if none is provided
     const user_id = userId || "00000000-0000-0000-0000-000000000000";
+    
+    console.log("Processing transaction for user:", user_id);
 
     // Insert transaction record into database
     const { data: transaction, error: insertError } = await supabaseClient
@@ -158,7 +160,7 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("Error inserting transaction:", insertError);
-      return new Response(JSON.stringify({ error: "Failed to create transaction" }), {
+      return new Response(JSON.stringify({ error: "Failed to create transaction: " + insertError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

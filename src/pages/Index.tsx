@@ -48,6 +48,8 @@ const Index = () => {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id;
       
+      console.log("Initiating payment with user ID:", userId || "anonymous");
+      
       // Call our Supabase Edge Function to initiate the STK Push
       const response = await fetch(
         "https://evghwzipbhnwhwkshumt.functions.supabase.co/initiate-stk-push",
@@ -64,11 +66,13 @@ const Index = () => {
         }
       );
       
-      const result = await response.json();
-      
       if (!response.ok) {
-        throw new Error(result.error || "Failed to process payment");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to process payment");
       }
+      
+      const result = await response.json();
+      console.log("Payment response:", result);
       
       setPaymentStatus("success");
       toast({
