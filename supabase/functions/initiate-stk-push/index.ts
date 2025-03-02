@@ -1,7 +1,5 @@
-
 // Import required modules
 import { serve } from "https://deno.land/std@0.140.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.4'
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -26,7 +24,7 @@ function getTimestamp(): string {
            String(now.getSeconds()).padStart(2, '0')
 }
 
-// Format phone number to include country code if needed
+// Format phone number to ensure it's in the correct format for M-Pesa
 function formatPhoneNumber(phoneNumber: string): string {
   // Remove any non-digit characters
   const digitsOnly = phoneNumber.replace(/\D/g, '')
@@ -41,9 +39,9 @@ function formatPhoneNumber(phoneNumber: string): string {
     return digitsOnly
   }
   
-  // If it starts with '+254', remove the '+' 
-  if (digitsOnly.startsWith('254')) {
-    return digitsOnly
+  // If it starts with '+254', remove the '+'
+  if (phoneNumber.startsWith('+254')) {
+    return phoneNumber.substring(1)
   }
   
   // Default case: assume it's a valid number and return as is
@@ -94,10 +92,10 @@ async function getOAuthToken() {
 }
 
 // Function to send STK Push
-async function sendSTKPush(phoneNumber: string, amount: number) {
+async function sendSTKPush(phone: string, amount: number) {
     try {
-        // Format phone number
-        const formattedPhone = formatPhoneNumber(phoneNumber)
+        // Ensure phone number is properly formatted
+        const formattedPhone = formatPhoneNumber(phone)
         console.log(`Initiating STK Push for ${formattedPhone} with amount ${amount}`)
         
         const token = await getOAuthToken()
@@ -163,10 +161,10 @@ serve(async (req: Request) => {
     try {
         // Parse request body
         const body = await req.json()
-        const { phoneNumber, amount, userId } = body
+        const { phone, amount } = body
         
         // Validate request body
-        if (!phoneNumber || !amount) {
+        if (!phone || !amount) {
             return new Response(
                 JSON.stringify({ error: 'Phone number and amount are required' }),
                 { 
@@ -176,44 +174,17 @@ serve(async (req: Request) => {
             )
         }
         
-        console.log(`Processing payment request: Phone=${phoneNumber}, Amount=${amount}, UserId=${userId || 'anonymous'}`)
-        
-        // Get Supabase client
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
-        const supabase = createClient(supabaseUrl, supabaseKey)
-        
-        // Convert amount to number
-        const numericAmount = parseInt(amount, 10)
+        console.log(`Processing payment request: Phone=${phone}, Amount=${amount}`)
         
         // Send STK Push
-        const stkResponse = await sendSTKPush(phoneNumber, numericAmount)
-        
-        // Store transaction in database
-        const { data: transaction, error: insertError } = await supabase
-            .from('transactions')
-            .insert({
-                phone_number: phoneNumber,
-                amount: parseFloat(amount),
-                user_id: userId || null, // Handle anonymous users
-                status: 'pending',
-                checkout_request_id: stkResponse.CheckoutRequestID
-            })
-            .select()
-            .single()
-        
-        if (insertError) {
-            console.error('Error storing transaction:', insertError)
-            throw new Error(`Failed to store transaction: ${insertError.message}`)
-        }
+        const stkResponse = await sendSTKPush(phone, amount)
         
         // Return response
         return new Response(
             JSON.stringify({
                 success: true,
                 message: 'STK Push initiated successfully',
-                checkoutRequestID: stkResponse.CheckoutRequestID,
-                transactionId: transaction.id
+                data: stkResponse
             }),
             { 
                 status: 200,

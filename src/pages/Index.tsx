@@ -50,29 +50,34 @@ const Index = () => {
       
       console.log("Initiating payment with user ID:", userId || "anonymous");
       
-      // Call our Supabase Edge Function to initiate the STK Push
-      const response = await fetch(
-        "https://evghwzipbhnwhwkshumt.functions.supabase.co/initiate-stk-push",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phoneNumber: values.phoneNumber,
-            amount: values.amount,
-            userId: userId, // Pass null for anonymous users
-          }),
-        }
-      );
+      // Format phone number (ensure it's in the correct format for M-Pesa)
+      let phoneNumber = values.phoneNumber;
+      // Remove any non-digit characters
+      phoneNumber = phoneNumber.replace(/\D/g, '');
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process payment");
+      // If it starts with '0', replace with '254'
+      if (phoneNumber.startsWith('0')) {
+        phoneNumber = '254' + phoneNumber.substring(1);
       }
       
-      const result = await response.json();
-      console.log("Payment response:", result);
+      // If it doesn't start with '254', add it
+      if (!phoneNumber.startsWith('254')) {
+        phoneNumber = '254' + phoneNumber;
+      }
+      
+      // Call the Supabase Edge Function using the client
+      const { data, error } = await supabase.functions.invoke('initiate-stk-push', {
+        body: {
+          phone: phoneNumber,
+          amount: Number(values.amount)
+        }
+      });
+      
+      if (error) {
+        throw new Error(error.message || "Failed to process payment");
+      }
+      
+      console.log("Payment response:", data);
       
       setPaymentStatus("success");
       toast({
