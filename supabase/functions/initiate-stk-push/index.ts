@@ -57,14 +57,16 @@ const password = Buffer.from(`${businessShortCode}${passkey}${timestamp}`).toStr
 
 // Function to get OAuth token
 async function getOAuthToken() {
-    if (!Deno.env.get('MPESA_CONSUMER_KEY') || !Deno.env.get('MPESA_CONSUMER_SECRET')) {
+    const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
+    const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
+    
+    if (!consumerKey || !consumerSecret) {
+        console.error('Missing M-Pesa API credentials')
         throw new Error('Missing M-Pesa API credentials')
     }
     
     console.log('Getting M-Pesa access token...')
     
-    const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
-    const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
     const credentials = btoa(`${consumerKey}:${consumerSecret}`)
     
     try {
@@ -145,13 +147,20 @@ async function sendSTKPush(phone: string, amount: number) {
 
 // Supabase Function to handle requests
 serve(async (req: Request) => {
+    console.log("Received request:", req.method, req.url)
+    
     // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
-        return new Response(null, { headers: corsHeaders })
+        console.log("Handling OPTIONS request for CORS")
+        return new Response(null, { 
+            status: 204,
+            headers: corsHeaders 
+        })
     }
     
     // Only accept POST requests
     if (req.method !== 'POST') {
+        console.error("Method not allowed:", req.method)
         return new Response(JSON.stringify({ error: 'Method not allowed' }), {
             status: 405,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -161,10 +170,13 @@ serve(async (req: Request) => {
     try {
         // Parse request body
         const body = await req.json()
+        console.log("Request body:", body)
+        
         const { phone, amount } = body
         
         // Validate request body
         if (!phone || !amount) {
+            console.error("Invalid request: Missing phone or amount")
             return new Response(
                 JSON.stringify({ error: 'Phone number and amount are required' }),
                 { 
