@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +73,13 @@ const Index = () => {
       });
       
       if (error) {
+        console.error("Supabase function error:", error);
         throw new Error(error.message || "Failed to process payment");
+      }
+      
+      if (!data || data.error) {
+        console.error("Payment API error:", data?.error || "Unknown error");
+        throw new Error(data?.error || "Failed to process payment");
       }
       
       console.log("Payment response:", data);

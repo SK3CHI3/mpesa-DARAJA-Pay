@@ -1,3 +1,4 @@
+
 // Import required modules
 import { serve } from "https://deno.land/std@0.140.0/http/server.ts"
 
@@ -56,15 +57,14 @@ const password = Buffer.from(`${businessShortCode}${passkey}${timestamp}`).toStr
 
 // Function to get OAuth token
 async function getOAuthToken() {
-    const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
-    const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
-    
-    if (!consumerKey || !consumerSecret) {
+    if (!Deno.env.get('MPESA_CONSUMER_KEY') || !Deno.env.get('MPESA_CONSUMER_SECRET')) {
         throw new Error('Missing M-Pesa API credentials')
     }
     
     console.log('Getting M-Pesa access token...')
     
+    const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
+    const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
     const credentials = btoa(`${consumerKey}:${consumerSecret}`)
     
     try {
