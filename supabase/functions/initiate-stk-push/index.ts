@@ -1,233 +1,228 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.4'
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 
-// Follow the Supabase Edge Function format
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// CORS headers for browser requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const MPESA_CONSUMER_KEY = Deno.env.get("MPESA_CONSUMER_KEY") || "";
-const MPESA_CONSUMER_SECRET = Deno.env.get("MPESA_CONSUMER_SECRET") || "";
+// Format phone number to include country code if needed
+function formatPhoneNumber(phoneNumber: string): string {
+  // Remove any non-digit characters
+  const digitsOnly = phoneNumber.replace(/\D/g, '')
+  
+  // If it starts with '0', replace with '254'
+  if (digitsOnly.startsWith('0')) {
+    return '254' + digitsOnly.substring(1)
+  }
+  
+  // If it starts with '254', keep as is
+  if (digitsOnly.startsWith('254')) {
+    return digitsOnly
+  }
+  
+  // If it starts with '+254', remove the '+' 
+  if (digitsOnly.startsWith('254')) {
+    return digitsOnly
+  }
+  
+  // Default case: assume it's a valid number and return as is
+  return digitsOnly
+}
 
-// M-Pesa API endpoints
-const OAUTH_URL = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
-const LIPA_NA_MPESA_URL = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
-const CALLBACK_URL = "https://evghwzipbhnwhwkshumt.functions.supabase.co/stk-callback";
-
-// M-Pesa business short code and passkey (usually provided by Safaricom)
-// Using sandbox values for now - replace with your own in production
-const BUSINESS_SHORT_CODE = "174379"; // Default sandbox short code
-const PASSKEY = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"; // Default sandbox passkey
-const TRANSACTION_TYPE = "CustomerPayBillOnline";
-
-// Initialize Supabase client with service role for database operations
-const supabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY
-);
+// Get timestamp in the format YYYYMMDDHHmmss
+function getTimestamp(): string {
+  return new Date().toISOString().replace(/[-:T.Z]/g, '').substring(0, 14)
+}
 
 // Function to get M-Pesa access token
-async function getMpesaAccessToken() {
-  console.log("Getting M-Pesa access token...");
+async function getMpesaAccessToken(): Promise<string> {
+  const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
+  const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
   
-  const auth = btoa(`${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`);
+  if (!consumerKey || !consumerSecret) {
+    throw new Error('Missing M-Pesa API credentials')
+  }
+  
+  console.log('Getting M-Pesa access token...')
+  
+  // Basic auth requires Base64 encoding of consumer key and secret
+  const auth = btoa(`${consumerKey}:${consumerSecret}`)
   
   try {
-    const response = await fetch(OAUTH_URL, {
-      method: "GET",
-      headers: {
-        "Authorization": `Basic ${auth}`,
-      },
-    });
+    const response = await fetch(
+      'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${auth}`
+        }
+      }
+    )
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("M-Pesa auth error:", errorText);
-      throw new Error(`Failed to get access token: ${response.status} ${response.statusText}`);
+      console.error(`Failed to get access token: ${response.status} ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(`Error response: ${errorText}`)
+      throw new Error(`Failed to get access token: ${response.status} ${response.statusText}`)
     }
     
-    const data = await response.json();
-    console.log("M-Pesa auth successful");
-    return data.access_token;
+    const data = await response.json()
+    console.log('Successfully got M-Pesa access token')
+    return data.access_token
   } catch (error) {
-    console.error("M-Pesa auth error:", error);
-    throw new Error(`Failed to authenticate with M-Pesa: ${error.message}`);
+    console.error('Error getting M-Pesa access token:', error)
+    throw new Error(`Failed to get access token: ${error.message}`)
   }
 }
 
-// Main function that handles the HTTP request
-serve(async (req) => {
-  // Handle preflight CORS
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-      status: 204,
-    });
+// Function to initiate STK Push request
+async function initiateSTKPush(
+  phoneNumber: string,
+  amount: string,
+  accessToken: string
+): Promise<any> {
+  try {
+    // Format phone number if needed
+    const formattedPhoneNumber = formatPhoneNumber(phoneNumber)
+    
+    // Business Shortcode - typically the same as the Paybill number
+    const businessShortCode = '174379' // Safaricom test paybill
+    
+    // Get timestamp
+    const timestamp = getTimestamp()
+    
+    // Create password (format: shortcode + passkey + timestamp)
+    const passkey = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919' // Test environment passkey
+    const password = btoa(businessShortCode + passkey + timestamp)
+    
+    console.log(`Initiating STK Push for ${formattedPhoneNumber} with amount ${amount}`)
+    
+    const response = await fetch(
+      'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          BusinessShortCode: businessShortCode,
+          Password: password,
+          Timestamp: timestamp,
+          TransactionType: 'CustomerPayBillOnline',
+          Amount: parseInt(amount, 10),
+          PartyA: formattedPhoneNumber,
+          PartyB: businessShortCode,
+          PhoneNumber: formattedPhoneNumber,
+          CallBackURL: 'https://evghwzipbhnwhwkshumt.functions.supabase.co/stk-callback',
+          AccountReference: 'M-Pesa Simplicity',
+          TransactionDesc: 'Payment for goods or services'
+        })
+      }
+    )
+    
+    if (!response.ok) {
+      console.error(`Failed to initiate STK Push: ${response.status} ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(`Error response: ${errorText}`)
+      throw new Error(`Failed to initiate STK Push: ${response.status} ${response.statusText}`)
+    }
+    
+    const result = await response.json()
+    console.log('STK Push initiated successfully:', result)
+    return result
+    
+  } catch (error) {
+    console.error('Error initiating STK Push:', error)
+    throw new Error(`Failed to initiate STK Push: ${error.message}`)
+  }
+}
+
+serve(async (req: Request) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+  
+  // Only accept POST requests
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
   
   try {
-    // Parse the request body
-    const requestData = await req.json();
-    const { phoneNumber, amount, userId } = requestData;
+    // Parse request body
+    const body = await req.json()
+    const { phoneNumber, amount, userId } = body
     
-    // Basic validation
+    // Validate request body
     if (!phoneNumber || !amount) {
       return new Response(
-        JSON.stringify({ error: "Phone number and amount are required" }),
+        JSON.stringify({ error: 'Phone number and amount are required' }),
         { 
           status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      );
+      )
     }
     
-    console.log(`Processing payment: ${amount} KES to phone ${phoneNumber}`);
+    console.log(`Processing payment request: Phone=${phoneNumber}, Amount=${amount}, UserId=${userId || 'anonymous'}`)
     
-    // Format phone number (remove leading 0 and add country code if needed)
-    let formattedPhone = phoneNumber;
-    if (phoneNumber.startsWith("0")) {
-      formattedPhone = "254" + phoneNumber.substring(1);
-    } else if (phoneNumber.startsWith("+")) {
-      formattedPhone = phoneNumber.substring(1);
-    }
+    // Get Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
+    const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Get M-Pesa access token
-    const accessToken = await getMpesaAccessToken();
+    // Step 1: Get M-Pesa access token
+    const accessToken = await getMpesaAccessToken()
     
-    // Generate timestamp in the format YYYYMMDDHHmmss
-    const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14);
+    // Step 2: Initiate STK Push
+    const stkResponse = await initiateSTKPush(phoneNumber, amount, accessToken)
     
-    // Generate password (base64 of shortcode + passkey + timestamp)
-    const password = btoa(`${BUSINESS_SHORT_CODE}${PASSKEY}${timestamp}`);
-    
-    // Prepare STK push request
-    const stkRequest = {
-      BusinessShortCode: BUSINESS_SHORT_CODE,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: TRANSACTION_TYPE,
-      Amount: amount,
-      PartyA: formattedPhone,
-      PartyB: BUSINESS_SHORT_CODE,
-      PhoneNumber: formattedPhone,
-      CallBackURL: CALLBACK_URL,
-      AccountReference: "M-Pesa Simplicity",
-      TransactionDesc: "Payment for services",
-    };
-    
-    console.log("Sending STK push request...");
-    
-    // Make STK push request
-    const stkResponse = await fetch(LIPA_NA_MPESA_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(stkRequest),
-    });
-    
-    // Handle STK response
-    if (!stkResponse.ok) {
-      const errorText = await stkResponse.text();
-      console.error("STK push error:", errorText);
-      return new Response(
-        JSON.stringify({ error: `M-Pesa request failed: ${stkResponse.status} ${stkResponse.statusText}` }),
-        { 
-          status: stkResponse.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          } 
-        }
-      );
-    }
-    
-    const stkData = await stkResponse.json();
-    console.log("STK push successful:", stkData);
-    
-    if (stkData.ResponseCode !== "0") {
-      return new Response(
-        JSON.stringify({ error: `M-Pesa error: ${stkData.ResponseDescription}` }),
-        { 
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          } 
-        }
-      );
-    }
-
-    // Insert transaction record into database without a user_id if it's null
-    let insertData = {
-      phone_number: phoneNumber,
-      amount: parseFloat(amount),
-      status: "pending"
-    };
-    
-    // Only add user_id if it's provided
-    if (userId) {
-      // @ts-ignore - TypeScript complaining but this is valid
-      insertData.user_id = userId;
-    }
-    
-    const { data: transaction, error: insertError } = await supabaseClient
-      .from("transactions")
-      .insert(insertData)
+    // Step 3: Store transaction in database
+    const { data: transaction, error: insertError } = await supabase
+      .from('transactions')
+      .insert({
+        phone_number: phoneNumber,
+        amount: parseFloat(amount),
+        user_id: userId || null, // Handle anonymous users
+        status: 'pending'
+      })
       .select()
-      .single();
-
+      .single()
+    
     if (insertError) {
-      console.error("Database insert error:", insertError);
-      return new Response(
-        JSON.stringify({ error: `Failed to create transaction: ${insertError.message}` }),
-        { 
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          } 
-        }
-      );
+      console.error('Error storing transaction:', insertError)
+      throw new Error(`Failed to store transaction: ${insertError.message}`)
     }
     
-    // Return success response
+    // Return response
     return new Response(
       JSON.stringify({
         success: true,
-        message: "STK push sent successfully",
-        mpesaRequestId: stkData.CheckoutRequestID,
-        transactionId: transaction.id,
+        message: 'STK Push initiated successfully',
+        checkoutRequestID: stkResponse.CheckoutRequestID,
+        transactionId: transaction.id
       }),
       { 
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    );
+    )
     
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error('Error processing request:', error)
     
     return new Response(
       JSON.stringify({ error: `Internal server error: ${error.message}` }),
       { 
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    );
+    )
   }
-});
+})
