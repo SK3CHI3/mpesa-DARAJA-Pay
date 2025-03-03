@@ -1,69 +1,45 @@
-# Welcome to your Lovable project
+# M-Pesa Daraja API Integration 🚀  
 
-## Project info
+A simple implementation of **M-Pesa STK Push** using **Daraja API** to process payments in Kenya.  
 
-**URL**: https://lovable.dev/projects/4f5c9b5c-bce9-476a-8831-1f217d098f2d
+## ⚡ Features  
+- ✅ STK Push (Prompt users to enter PIN on their phone)  
+- ✅ Secure authentication using **Consumer Key & Secret**  
+- ✅ Generates **Base64 Password** for STK Push  
+- ✅ Callback URL for real-time transaction updates  
 
-## How can I edit this code?
+## 🔧 Setup & Installation  
 
-There are several ways of editing your application.
+### 1️⃣ Clone the Repo  
+```bash
+git clone https://github.com/SK3CHI3/mpesa-DARAJA-Pay.git
+cd mpesa-DARAJA-Pay
+2️⃣ Set Up Environment Variables
+Create a .env file and add:
 
-**Use Lovable**
+env
+Copy
+Edit
+MPESA_CONSUMER_KEY=your_consumer_key
+MPESA_CONSUMER_SECRET=your_consumer_secret
+MPESA_SHORTCODE=your_shortcode
+MPESA_PASSKEY=your_passkey
+CALLBACK_URL=https://your-callback-url.com/stk-callback
+3️⃣ Install Dependencies
+bash
+Copy
+Edit
+npm install
+4️⃣ Run the App
+bash
+Copy
+Edit
+node index.js
+📌 API Endpoints
+STK Push Request → /stk-push (Triggers M-Pesa payment request)
+STK Callback → /stk-callback (Handles M-Pesa responses)
+📜 License
+MIT License. Feel free to use and contribute!
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4f5c9b5c-bce9-476a-8831-1f217d098f2d) and start prompting.
+🔥 Built by SK3CHI3 🚀
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/4f5c9b5c-bce9-476a-8831-1f217d098f2d) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
