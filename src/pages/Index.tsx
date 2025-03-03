@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, PhoneCall, ArrowRight, CheckCircle, History } from "lucide-react";
+import { CreditCard, PhoneCall, ArrowRight, CheckCircle, History, AlertCircle } from "lucide-react";
 import { supabase } from "@/App";
 
 // Define our form schema
@@ -30,6 +31,7 @@ const formSchema = z.object({
 
 const Index = () => {
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,6 +44,7 @@ const Index = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setPaymentStatus("loading");
+      setErrorMessage(null);
       
       // Get current user if logged in (will be null for anonymous users)
       const { data: { user } } = await supabase.auth.getUser();
@@ -74,11 +77,13 @@ const Index = () => {
       
       if (error) {
         console.error("Supabase function error:", error);
+        setErrorMessage(error.message || "Failed to process payment");
         throw new Error(error.message || "Failed to process payment");
       }
       
       if (!data || data.error) {
         console.error("Payment API error:", data?.error || "Unknown error");
+        setErrorMessage(data?.error || "Failed to process payment");
         throw new Error(data?.error || "Failed to process payment");
       }
       
@@ -87,7 +92,7 @@ const Index = () => {
       setPaymentStatus("success");
       toast({
         title: "Payment initiated",
-        description: `KES ${values.amount} payment request sent to ${values.phoneNumber}`,
+        description: `You'll receive an M-Pesa prompt on ${values.phoneNumber} to authorize KES ${values.amount}`,
       });
       
       // Reset form
@@ -101,10 +106,11 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      // Reset payment status after 3 seconds
+      // Reset payment status after 5 seconds
       setTimeout(() => {
         setPaymentStatus("idle");
-      }, 3000);
+        setErrorMessage(null);
+      }, 5000);
     }
   };
 
@@ -124,6 +130,14 @@ const Index = () => {
           </CardHeader>
 
           <CardContent className="pt-6">
+            {/* Show error message if any */}
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -192,6 +206,11 @@ const Index = () => {
                       <span className="flex items-center gap-2">
                         <CheckCircle className="h-5 w-5" />
                         Payment Sent
+                      </span>
+                    ) : paymentStatus === "error" ? (
+                      <span className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5" />
+                        Retry Payment
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">

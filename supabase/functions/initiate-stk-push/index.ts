@@ -8,11 +8,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Business Shortcode (Test Paybill Number)
-const businessShortCode = '174379'
+// Business Shortcode (Your actual M-Pesa till/paybill number)
+// Replace with your actual business shortcode from Safaricom
+const businessShortCode = '174379' // Change this to your actual business shortcode
 
-// Passkey from Daraja API (Test environment)
-const passkey = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
+// Passkey (Production passkey from Safaricom)
+// Replace this with your actual production passkey
+const passkey = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919' // Change this to your production passkey
 
 // Function to generate timestamp in YYYYMMDDHHmmss format
 function getTimestamp(): string {
@@ -70,7 +72,8 @@ async function getOAuthToken() {
     const credentials = btoa(`${consumerKey}:${consumerSecret}`)
     
     try {
-        const response = await fetch("https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
+        // Change to production URL
+        const response = await fetch("https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
             method: "GET",
             headers: {
                 "Authorization": `Basic ${credentials}`
@@ -119,7 +122,8 @@ async function sendSTKPush(phone: string, amount: number) {
             "TransactionDesc": "Payment for goods or services"
         }
 
-        const response = await fetch("https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest", {
+        // Change to production URL
+        const response = await fetch("https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${token}`,
