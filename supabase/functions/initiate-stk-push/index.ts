@@ -14,6 +14,10 @@ const businessShortCode = '3315028'
 // Passkey (Production passkey from Safaricom)
 const passkey = 'BSTqgZswZMDX3JxoD3ckC61lLGAFg2J4CJX9962ngNUdvShTHp5ODdg9aIbIGZWWZs7cvglFzz04gDlp8paJr4vPAnUob6VXHIWj/oT1IJdXtCaRX8dHSqA5QaZ4em6zjQTmPoAQkuaUDQppoLOawbslLGTEaBk4llaOmY6v3JjsNMEDghl5eRaISp0ox9iMZPtaR2xwRNt1+dmSm7oszN/Ydvs6BM7y7rbkCRkHX5KmU+GMYIEjwIq3d15scVT7HNyOMR8lWYd4lC8z8MFnu8zJPjT+mKnyaY0/9O7hSSkJjnm4aGM8cLtNiK9PBeauid1ErjqoAhpwMCZFke0FHg=='
 
+// M-Pesa API credentials - for debugging purposes only, actual values come from env
+const consumerKey = 'Y4aAvrdocwyCCJ6QFz6ZVgZAmrpJUdiGyi9mc8mRF0zjgG0C'
+const consumerSecret = '8as7MlBoe9BIhE0xtki96hg6oyBFdlW4px6UCuTvIC7AJXVrAsg2uUnWCPUYwAZj'
+
 // Function to generate timestamp in YYYYMMDDHHmmss format
 function getTimestamp(): string {
     const now = new Date()
@@ -65,21 +69,35 @@ function generatePassword(): string {
 
 // Function to get OAuth token
 async function getOAuthToken() {
-    const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
-    const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
+    // Try to get credentials from environment first
+    let mpesaConsumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
+    let mpesaConsumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET')
     
-    if (!consumerKey || !consumerSecret) {
+    // If env variables are not set, use the hardcoded values (for development only)
+    if (!mpesaConsumerKey) {
+        console.log('MPESA_CONSUMER_KEY not found in environment, using hardcoded value')
+        mpesaConsumerKey = consumerKey
+    }
+    
+    if (!mpesaConsumerSecret) {
+        console.log('MPESA_CONSUMER_SECRET not found in environment, using hardcoded value')
+        mpesaConsumerSecret = consumerSecret
+    }
+    
+    if (!mpesaConsumerKey || !mpesaConsumerSecret) {
         console.error('Missing M-Pesa API credentials')
-        throw new Error('Missing M-Pesa API credentials. Please configure MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET in Supabase secrets.')
+        throw new Error('Missing M-Pesa API credentials. Please check both hardcoded values and environment variables.')
     }
     
     console.log('Getting M-Pesa access token...')
-    console.log('Consumer Key available:', !!consumerKey)
-    console.log('Consumer Secret available:', !!consumerSecret)
+    console.log('Consumer Key available:', !!mpesaConsumerKey)
+    console.log('Consumer Secret available:', !!mpesaConsumerSecret)
+    console.log('Using Consumer Key:', mpesaConsumerKey)
     
-    const credentials = btoa(`${consumerKey}:${consumerSecret}`)
+    const credentials = btoa(`${mpesaConsumerKey}:${mpesaConsumerSecret}`)
     
     try {
+        console.log('Sending OAuth request to M-Pesa API...')
         // Production URL
         const response = await fetch("https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
             method: "GET",
@@ -88,11 +106,13 @@ async function getOAuthToken() {
             }
         })
         
+        console.log('M-Pesa OAuth response status:', response.status)
+        
         if (!response.ok) {
             console.error(`Failed to get access token: ${response.status} ${response.statusText}`)
             const errorText = await response.text()
             console.error(`Error response: ${errorText}`)
-            throw new Error(`Failed to get access token: ${response.status} ${response.statusText}`)
+            throw new Error(`Failed to get access token: ${response.status} ${response.statusText}. Details: ${errorText}`)
         }
         
         const data = await response.json()
