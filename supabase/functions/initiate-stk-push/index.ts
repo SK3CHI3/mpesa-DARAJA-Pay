@@ -67,7 +67,7 @@ function generatePassword(): string {
   }
 }
 
-// Function to get OAuth token
+// Function to get OAuth token - with enhanced error handling and diagnostics
 async function getOAuthToken() {
     // Try to get credentials from environment first
     let mpesaConsumerKey = Deno.env.get('MPESA_CONSUMER_KEY')
@@ -92,14 +92,19 @@ async function getOAuthToken() {
     console.log('Getting M-Pesa access token...')
     console.log('Consumer Key available:', !!mpesaConsumerKey)
     console.log('Consumer Secret available:', !!mpesaConsumerSecret)
-    console.log('Using Consumer Key:', mpesaConsumerKey)
-    
-    const credentials = btoa(`${mpesaConsumerKey}:${mpesaConsumerSecret}`)
+    console.log('Using Consumer Key:', mpesaConsumerKey.substring(0, 5) + '...')
     
     try {
+        // Create Base64 encoded auth string
+        const credentials = btoa(`${mpesaConsumerKey}:${mpesaConsumerSecret}`)
+        console.log('Credentials encoded successfully')
+        
         console.log('Sending OAuth request to M-Pesa API...')
         // Production URL
-        const response = await fetch("https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
+        const authUrl = "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+        console.log('Auth URL:', authUrl)
+        
+        const response = await fetch(authUrl, {
             method: "GET",
             headers: {
                 "Authorization": `Basic ${credentials}`
@@ -107,15 +112,39 @@ async function getOAuthToken() {
         })
         
         console.log('M-Pesa OAuth response status:', response.status)
+        console.log('M-Pesa OAuth response headers:', JSON.stringify(Object.fromEntries([...response.headers])))
         
         if (!response.ok) {
             console.error(`Failed to get access token: ${response.status} ${response.statusText}`)
-            const errorText = await response.text()
-            console.error(`Error response: ${errorText}`)
+            
+            let errorText
+            try {
+                errorText = await response.text()
+                console.error(`Error response: ${errorText}`)
+            } catch (e) {
+                errorText = "Could not read error response body"
+                console.error(`Error reading response: ${e}`)
+            }
+            
             throw new Error(`Failed to get access token: ${response.status} ${response.statusText}. Details: ${errorText}`)
         }
         
-        const data = await response.json()
+        let data
+        try {
+            data = await response.json()
+            console.log('Successfully parsed OAuth response JSON')
+        } catch (e) {
+            console.error(`Error parsing OAuth response: ${e}`)
+            const responseText = await response.text()
+            console.error(`Response was: ${responseText}`)
+            throw new Error(`Error parsing OAuth response: ${e}. Response text: ${responseText}`)
+        }
+        
+        if (!data.access_token) {
+            console.error('OAuth response did not contain access_token', data)
+            throw new Error('OAuth response did not contain access_token')
+        }
+        
         console.log('Successfully got M-Pesa access token')
         return data.access_token
     } catch (error) {
@@ -132,7 +161,10 @@ async function sendSTKPush(phone: string, amount: number) {
         console.log(`Initiating STK Push for ${formattedPhone} with amount ${amount}`)
         
         const token = await getOAuthToken()
+        console.log('Access token obtained successfully')
+        
         const password = generatePassword()
+        console.log('STK Push password generated successfully')
 
         // Callback URL (where M-Pesa sends transaction responses)
         const callBackURL = 'https://evghwzipbhnwhwkshumt.functions.supabase.co/stk-callback'
@@ -154,7 +186,10 @@ async function sendSTKPush(phone: string, amount: number) {
         console.log('STK Push payload:', JSON.stringify(payload, null, 2))
 
         // Production URL
-        const response = await fetch("https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest", {
+        const stkUrl = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+        console.log('STK Push URL:', stkUrl)
+        
+        const response = await fetch(stkUrl, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${token}`,
@@ -163,9 +198,16 @@ async function sendSTKPush(phone: string, amount: number) {
             body: JSON.stringify(payload)
         })
         
-        const responseBody = await response.text()
         console.log(`STK Push response status: ${response.status}`)
-        console.log(`STK Push response body: ${responseBody}`)
+        
+        let responseBody
+        try {
+            responseBody = await response.text()
+            console.log(`STK Push response body: ${responseBody}`)
+        } catch (e) {
+            console.error(`Error reading STK Push response: ${e}`)
+            throw new Error(`Error reading STK Push response: ${e}`)
+        }
         
         if (!response.ok) {
             console.error(`Failed to initiate STK Push: ${response.status} ${response.statusText}`)
