@@ -74,6 +74,8 @@ async function getOAuthToken() {
     }
     
     console.log('Getting M-Pesa access token...')
+    console.log('Consumer Key available:', !!consumerKey)
+    console.log('Consumer Secret available:', !!consumerSecret)
     
     const credentials = btoa(`${consumerKey}:${consumerSecret}`)
     
