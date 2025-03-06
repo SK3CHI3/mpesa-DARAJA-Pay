@@ -67,6 +67,8 @@ const Index = () => {
         phoneNumber = '254' + phoneNumber;
       }
       
+      console.log("Formatted phone number:", phoneNumber);
+      
       // Call the Supabase Edge Function using the client
       const { data, error } = await supabase.functions.invoke('initiate-stk-push', {
         body: {

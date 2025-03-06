@@ -9,12 +9,10 @@ const corsHeaders = {
 }
 
 // Business Shortcode (Your actual M-Pesa till/paybill number)
-// Replace with your actual business shortcode from Safaricom
-const businessShortCode = '174379' // Change this to your actual business shortcode
+const businessShortCode = '3315028'
 
 // Passkey (Production passkey from Safaricom)
-// Replace this with your actual production passkey
-const passkey = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919' // Change this to your production passkey
+const passkey = 'BSTqgZswZMDX3JxoD3ckC61lLGAFg2J4CJX9962ngNUdvShTHp5ODdg9aIbIGZWWZs7cvglFzz04gDlp8paJr4vPAnUob6VXHIWj/oT1IJdXtCaRX8dHSqA5QaZ4em6zjQTmPoAQkuaUDQppoLOawbslLGTEaBk4llaOmY6v3JjsNMEDghl5eRaISp0ox9iMZPtaR2xwRNt1+dmSm7oszN/Ydvs6BM7y7rbkCRkHX5KmU+GMYIEjwIq3d15scVT7HNyOMR8lWYd4lC8z8MFnu8zJPjT+mKnyaY0/9O7hSSkJjnm4aGM8cLtNiK9PBeauid1ErjqoAhpwMCZFke0FHg=='
 
 // Function to generate timestamp in YYYYMMDDHHmmss format
 function getTimestamp(): string {
@@ -54,8 +52,16 @@ function formatPhoneNumber(phoneNumber: string): string {
 // Generate Timestamp
 const timestamp = getTimestamp()
 
-// Generate STK Push Password
-const password = Buffer.from(`${businessShortCode}${passkey}${timestamp}`).toString('base64')
+// Generate STK Push Password - this function creates the base64 password required by M-Pesa
+function generatePassword(): string {
+  try {
+    const passwordString = `${businessShortCode}${passkey}${timestamp}`
+    return btoa(passwordString)
+  } catch (error) {
+    console.error('Error generating password:', error)
+    throw new Error('Failed to generate password for M-Pesa authentication')
+  }
+}
 
 // Function to get OAuth token
 async function getOAuthToken() {
@@ -64,7 +70,7 @@ async function getOAuthToken() {
     
     if (!consumerKey || !consumerSecret) {
         console.error('Missing M-Pesa API credentials')
-        throw new Error('Missing M-Pesa API credentials')
+        throw new Error('Missing M-Pesa API credentials. Please configure MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET in Supabase secrets.')
     }
     
     console.log('Getting M-Pesa access token...')
@@ -72,7 +78,7 @@ async function getOAuthToken() {
     const credentials = btoa(`${consumerKey}:${consumerSecret}`)
     
     try {
-        // Change to production URL
+        // Production URL
         const response = await fetch("https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
             method: "GET",
             headers: {
@@ -104,6 +110,7 @@ async function sendSTKPush(phone: string, amount: number) {
         console.log(`Initiating STK Push for ${formattedPhone} with amount ${amount}`)
         
         const token = await getOAuthToken()
+        const password = generatePassword()
 
         // Callback URL (where M-Pesa sends transaction responses)
         const callBackURL = 'https://evghwzipbhnwhwkshumt.functions.supabase.co/stk-callback'
@@ -122,7 +129,9 @@ async function sendSTKPush(phone: string, amount: number) {
             "TransactionDesc": "Payment for goods or services"
         }
 
-        // Change to production URL
+        console.log('STK Push payload:', JSON.stringify(payload, null, 2))
+
+        // Production URL
         const response = await fetch("https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest", {
             method: "POST",
             headers: {
@@ -132,14 +141,24 @@ async function sendSTKPush(phone: string, amount: number) {
             body: JSON.stringify(payload)
         })
         
+        const responseBody = await response.text()
+        console.log(`STK Push response status: ${response.status}`)
+        console.log(`STK Push response body: ${responseBody}`)
+        
         if (!response.ok) {
             console.error(`Failed to initiate STK Push: ${response.status} ${response.statusText}`)
-            const errorText = await response.text()
-            console.error(`Error response: ${errorText}`)
-            throw new Error(`Failed to initiate STK Push: ${response.status} ${response.statusText}`)
+            throw new Error(`Failed to initiate STK Push: ${responseBody || response.statusText}`)
         }
         
-        const result = await response.json()
+        // Parse the response if it's JSON
+        let result
+        try {
+            result = JSON.parse(responseBody)
+        } catch (e) {
+            console.warn('Response is not valid JSON:', responseBody)
+            return { success: true, rawResponse: responseBody }
+        }
+        
         console.log('STK Push initiated successfully:', result)
         return result
         
